@@ -1,5 +1,5 @@
 # KymoButlerAnalyzer
- Compile, extract, and analyze data from KymoButler results ouput
+ Compile, extract, and analyze data from KymoButler results ouput. 
 
 
 # KymoButlerAnalyzer
@@ -41,3 +41,4 @@ After running KymoButler to analyze kymographs, you should have a results file f
 3. Make sure your KymoButler results files are all located within the condition folders
 
 
+Developed by Oliver Sterling-Angus https://github.com/oes6098
