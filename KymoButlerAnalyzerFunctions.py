@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageEnhance
 import math
 
 '''
@@ -14,27 +14,39 @@ def resize_function_rectangle(image):
     return image.resize((2048, 512), Image.BICUBIC)
 
 # Function to resize images based on their aspect ratio
-def resize_images(images_dir, brightness_factor):
+def resize_images(images_dir, overlay, brightness_factor):
     resized_images = []
     resize_functions = []  # Keep track of which resize function was used for each image
-    for root, dirs, files in os.walk(images_dir):
-        for filename in files:
-            if filename.endswith("Kymograph.png"):
-                img_path = os.path.join(root, filename)
+    
+    if overlay:
+        for filename in os.listdir(images_dir):
+            if filename.endswith('.png'):
+                img_path = os.path.join(images_dir, filename)
                 img = Image.open(img_path)
-
-                # Adjust brightness for certain channels
-                if "Kymograph" in filename:
-                    img = adjust_brightness(img, brightness_factor)
-                
+                img = adjust_brightness(img, brightness_factor)
                 resized_img = resize_function_rectangle(img)
                 resize_functions.append("rectangle")
                 resized_images.append(resized_img)
+    
+    else:
+        for root, dir, files in os.walk(images_dir):
+            for filename in files:
+                if filename.endswith("Kymograph.png"):
+                    img_path = os.path.join(root, filename)
+                    img = Image.open(img_path)
+
+                    # Adjust brightness for certain channels
+                    if "Kymograph" in filename:
+                        img = adjust_brightness_gray(img, brightness_factor)
+                    
+                    resized_img = resize_function_rectangle(img)
+                    resize_functions.append("rectangle")
+                    resized_images.append(resized_img)
 
     return resized_images, resize_functions
 
 # Function to adjust brightness of an image without changing colors
-def adjust_brightness(image, brightness_factor):
+def adjust_brightness_gray(image, brightness_factor):
     # Convert image to grayscale
     grayscale_image = image.convert('L')
 
@@ -43,6 +55,13 @@ def adjust_brightness(image, brightness_factor):
 
     # Convert the adjusted grayscale image back to RGB
     return adjusted_image.convert('RGB')
+
+# Function to adjust brightness of an image while maintaining colors
+def adjust_brightness(image, brightness_factor):
+    # Apply brightness factor to each pixel in the image
+    enhancer = ImageEnhance.Brightness(image)
+    return enhancer.enhance(brightness_factor)
+
 
 
 
@@ -74,8 +93,8 @@ def plot_images(images, resize_functions, output_dir, num_cols=4, title="Image G
     plt.savefig(save_path)
 
 # Make grid of all the kymos
-def kymogrid(images_dir, output_dir, title):
-    resized_images, resize_functions = resize_images(images_dir, brightness_factor=3)
+def kymogrid(images_dir, output_dir, title, overlay, brightness_factor=3):
+    resized_images, resize_functions = resize_images(images_dir, overlay, brightness_factor)
     plot_images(resized_images, resize_functions, output_dir, title=title)
 
 '''
@@ -148,17 +167,20 @@ def calculate_bins(data, method='sqrt'):
 Extract and compile data from kymobutler results files
 '''
 # Go through and process all the KymoButler results files, extracting each data metric by direction and counting number of tracks per direction
-def process_data(path, conditionnames, dfs, columnmapping, results_folder, grid_folder, kymo_grid):
+def process_data(path, conditionnames, dfs, columnmapping, results_folder, grid_folder, kymo_grid, row_number=0):
     for condition in conditionnames:
         condition_path = os.path.join(path, condition)
 
-        row_number = 0
         print(f"  Processing condition: {condition}")
 
         directory_name = os.path.basename(path)
         if kymo_grid:
             titlegrid = f'{directory_name}_{condition}'
-            kymogrid(condition_path, grid_folder, titlegrid)
+            kymogrid(condition_path, grid_folder, titlegrid, overlay=False)
+
+            overlaytitlegrid=f'{directory_name}_{condition}_overlay'
+            overlayfolder= os.path.join(condition_path, 'kymo_overlays')
+            kymogrid(overlayfolder, grid_folder, overlaytitlegrid, overlay=True, brightness_factor=2)
 
         for filename in os.listdir(condition_path):
             if filename.endswith(('.xlsx', '.xls')):
@@ -231,3 +253,4 @@ def process_data(path, conditionnames, dfs, columnmapping, results_folder, grid_
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
 
     print("Dataframes created and saved successfully!")
+    return row_number
